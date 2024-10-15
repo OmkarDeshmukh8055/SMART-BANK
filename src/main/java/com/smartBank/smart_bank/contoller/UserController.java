@@ -1,9 +1,6 @@
 package com.smartBank.smart_bank.contoller;
 
-import com.smartBank.smart_bank.dto.BankResponse;
-import com.smartBank.smart_bank.dto.CreditDebitRequest;
-import com.smartBank.smart_bank.dto.EnquiryRequest;
-import com.smartBank.smart_bank.dto.UserRequest;
+import com.smartBank.smart_bank.dto.*;
 import com.smartBank.smart_bank.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -45,6 +42,14 @@ public class UserController {
     @PostMapping("debit")
     public ResponseEntity<BankResponse> debitAmount(@RequestBody CreditDebitRequest request){
         BankResponse debitInfo = userService.debitAccount(request);
+
+        return new ResponseEntity<>(debitInfo,HttpStatus.OK);
+
+    }
+
+    @PostMapping("transfer")
+    public ResponseEntity<BankResponse> transferAmountToAnotherAccount(@RequestBody TransferRequest request){
+        BankResponse debitInfo = userService.transfer(request);
 
         return new ResponseEntity<>(debitInfo,HttpStatus.OK);
 

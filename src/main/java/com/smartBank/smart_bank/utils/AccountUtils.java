@@ -18,6 +18,10 @@ public class AccountUtils {
     public static final String AMOUNT_DEBIT_MESSAGE="Amount is Debited successfully!!";
     public static final String AMOUNT_INSUFFICIENT_BALANCE_CODE="000";
     public static final String AMOUNT_INSUFFICIENT_BALANCE_MESSAGE="Balance is insufficient";
+    public static final String DEBIT_ACCOUNT_NOT_EXIT="Please Your account number is wrong";
+    public static final String CREDIT_ACCOUNT_NOT_EXIT="Please check account is not exits";
+    public static final String TRANSACTION_SUCCESSFULLY_COMPLETED_CODE="200";
+    public static final String TRANSACTION_SUCCESSFULLY_COMPLETED_MESSAGE="Transaction successfully completed";
     public static  String generateAccountNumber() {
         Year currentYear = Year.now();
         int min = 100000;

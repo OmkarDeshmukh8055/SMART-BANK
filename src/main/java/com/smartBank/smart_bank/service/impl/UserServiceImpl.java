@@ -154,4 +154,62 @@ return BankResponse.builder()
                 .build();
 
     }
+
+    @Override
+    public BankResponse transfer(TransferRequest request) {
+
+        if (!userRepository.existsByAccountNumber(request.getSourceAccountNumber())){
+            return BankResponse.builder()
+                    .responseCode(AccountUtils.DEBIT_ACCOUNT_NOT_EXIT)
+                    .responseMessage(AccountUtils.ACCOUNT_NOT_EXIST_MESSAGE)
+                    .accountInfo(null)
+                    .build();
+        }
+        if (!userRepository.existsByAccountNumber(request.getDestinationAccountNumber())){
+            return BankResponse.builder()
+                    .responseCode(AccountUtils.CREDIT_ACCOUNT_NOT_EXIT)
+                    .responseMessage(AccountUtils.ACCOUNT_NOT_EXIST_MESSAGE)
+                    .accountInfo(null)
+                    .build();
+        }
+
+        User debit = userRepository.findByAccountNumber(request.getSourceAccountNumber());
+        User credit = userRepository.findByAccountNumber(request.getDestinationAccountNumber());
+
+        if(debit.getAccountBalance()<request.getAmount()){
+            return BankResponse.builder()
+                    .responseCode(AccountUtils.AMOUNT_INSUFFICIENT_BALANCE_CODE)
+                    .responseMessage(AccountUtils.AMOUNT_INSUFFICIENT_BALANCE_MESSAGE)
+                    .accountInfo(null)
+                    .build();
+        }
+
+        debit.setAccountBalance(debit.getAccountBalance()- request.getAmount());
+        User saveDebit = userRepository.save(debit);
+
+        EmailDetails debitEmail=EmailDetails.builder()
+                .subject("Debit Alert")
+                .recipient(debit.getEmail())
+                .messageBody(request.getAmount()+" rs is transferred to "+request.getDestinationAccountNumber()+" account ! current balance "+saveDebit.getAccountBalance())
+                .build();
+
+        emailService.sendEmail(debitEmail);
+
+        credit.setAccountBalance(credit.getAccountBalance()+request.getAmount());
+        User saveCredit = userRepository.save(credit);
+
+        EmailDetails creditEmail=EmailDetails.builder()
+                .subject("Credit Alert")
+                .recipient(debit.getEmail())
+                .messageBody(request.getAmount()+" rs is credited from "+request.getSourceAccountNumber()+" account ! current balance "+saveCredit.getAccountBalance())
+                .build();
+
+        emailService.sendEmail(creditEmail);
+
+        return BankResponse.builder()
+                .responseCode(AccountUtils.TRANSACTION_SUCCESSFULLY_COMPLETED_CODE)
+                .responseMessage(AccountUtils.TRANSACTION_SUCCESSFULLY_COMPLETED_MESSAGE)
+                .accountInfo(null)
+                .build();
+    }
 }

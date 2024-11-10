@@ -1,11 +1,18 @@
 package com.smartBank.smart_bank.service.impl;
 
+import com.smartBank.smart_bank.config.JwtTokenProvider;
 import com.smartBank.smart_bank.dto.*;
+import com.smartBank.smart_bank.entity.Role;
 import com.smartBank.smart_bank.entity.User;
 import com.smartBank.smart_bank.repository.UserRepository;
+import com.smartBank.smart_bank.service.TransactionService;
 import com.smartBank.smart_bank.service.UserService;
 import com.smartBank.smart_bank.utils.AccountUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,6 +23,16 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     EmailServiceImpl emailService;
+    @Autowired
+    TransactionService transactionService;
+
+    @Autowired
+    PasswordEncoder passwordEncoder;
+    @Autowired
+    AuthenticationManager manager;
+
+    @Autowired
+    JwtTokenProvider jwtTokenProvider;
     @Override
     public BankResponse createAccount(UserRequest userRequest) {
 
@@ -36,9 +53,11 @@ public class UserServiceImpl implements UserService {
                 .accountNumber(AccountUtils.generateAccountNumber())
                 .accountBalance(0)
                 .email(userRequest.getEmail())
+                .password(passwordEncoder.encode(userRequest.getPassword()))
                 .phoneNumber(userRequest.getPhoneNumber())
                 .alternatePhoneNumber(userRequest.getAlternatePhoneNumber())
                 .status("ACTIVE")
+                .role(Role.valueOf("ROLE_ADMIN"))
                 .build();
 
         User userSave=userRepository.save(newUser);
@@ -61,6 +80,25 @@ public class UserServiceImpl implements UserService {
                                         .build();
     }
 
+    public BankResponse login(LoginDto loginDto){
+        Authentication authentication=null;
+
+        authentication=manager.authenticate(new UsernamePasswordAuthenticationToken(loginDto.getEmail(),loginDto.getPassword()));
+
+        EmailDetails emailDetails=EmailDetails.builder()
+                .subject("Your Welcome!!!")
+                .recipient(loginDto.getEmail())
+                .messageBody("You logged in your account")
+                .build();
+
+        emailService.sendEmail(emailDetails);
+
+        return BankResponse.builder()
+                .responseCode("Logged in")
+                .responseMessage(jwtTokenProvider.generateToken(authentication))
+                .build();
+
+    }
     @Override
     public BankResponse balanceEnquiry(EnquiryRequest enquiryRequest) {
         boolean isExits=userRepository.existsByAccountNumber(enquiryRequest.getAccountNumber());
@@ -111,6 +149,15 @@ return BankResponse.builder()
         User user=userRepository.findByAccountNumber(request.getAccountNumber());
         user.setAccountBalance(user.getAccountBalance()+request.getAmount());
         userRepository.save(user);
+
+        TransactionDto transactionDto=TransactionDto.builder()
+                .transactionType("CREDIT")
+                .accountNumber(user.getAccountNumber())
+                .amount(request.getAmount())
+                .build();
+
+        transactionService.saveTransaction(transactionDto);
+
         return  BankResponse.builder()
                         .responseCode(AccountUtils.AMOUNT_CREDITED_CODE)
                                 .responseMessage(AccountUtils.AMOUNT_CREDITED_MESSAGE)
@@ -143,6 +190,15 @@ return BankResponse.builder()
         }
         user.setAccountBalance(user.getAccountBalance()-request.getAmount());
         userRepository.save(user);
+
+        TransactionDto transactionDto=TransactionDto.builder()
+                .transactionType("DEBIT")
+                .accountNumber(user.getAccountNumber())
+                .amount(request.getAmount())
+                .build();
+
+        transactionService.saveTransaction(transactionDto);
+
         return  BankResponse.builder()
                 .responseCode(AccountUtils.AMOUNT_DEBIT_CODE)
                 .responseMessage(AccountUtils.AMOUNT_DEBIT_MESSAGE)
@@ -205,6 +261,15 @@ return BankResponse.builder()
                 .build();
 
         emailService.sendEmail(creditEmail);
+
+
+        TransactionDto transactionDto=TransactionDto.builder()
+                .transactionType("CREDIT")
+                .accountNumber(credit.getAccountNumber())
+                .amount(request.getAmount())
+                .build();
+
+        transactionService.saveTransaction(transactionDto);
 
         return BankResponse.builder()
                 .responseCode(AccountUtils.TRANSACTION_SUCCESSFULLY_COMPLETED_CODE)
